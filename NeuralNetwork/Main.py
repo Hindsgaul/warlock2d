@@ -171,7 +171,7 @@ class Char:
         self.dashimage = pygame.image.load("dash.png")
         self.rect = pygame.Rect(x, y, self.image.get_rect().width, self.image.get_rect().height)
         self.movementSpeed = 7
-        self.xforce, self.yforce = 0
+        self.xforce, self.yforce = 0, 0
         self.isJump = False
         self.movementDirection = "none"
 

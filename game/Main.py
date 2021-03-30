@@ -2,9 +2,19 @@
 
 import pygame
 import math
+import numpy
 
-SCREENWIDTH = 1280
-SCREENHEIGHT = 720
+#from game.Character import Character
+from game.Math import Math
+from game.Hookshot import Hookshot
+from game.SmashHit import SmashHit
+from game.Fireball import Fireball
+from game.Wall import Wall
+from game.CharHUD import CharHUD
+from game.CharInput import CharInput
+
+SCREENWIDTH = 720
+SCREENHEIGHT = 450
 
 pygame.init()
 # load and set the logo
@@ -20,7 +30,7 @@ spriteSmashes = []
 spriteHookshots = []
 
 # create a surface on screen that has the size of 240 x 180
-screen = pygame.display.set_mode((SCREENWIDTH, SCREENHEIGHT))
+screen = pygame.display.set_mode((SCREENWIDTH, SCREENHEIGHT), pygame.RESIZABLE)
 screen.fill((255, 255, 255))
 
 keys = pygame.key.get_pressed()
@@ -37,189 +47,26 @@ ply2ctrls.extend((keys[pygame.K_a], keys[pygame.K_d], keys[pygame.K_w], keys[pyg
 
 spriteFireballs = list()
 
-class CharInput():
-    def __init__(self, ctrls):
-        self.left, self.right, self.up, self.shoot, self.hit, self.down, self.hook, self.roll = \
-            ctrls[0], ctrls[1], ctrls[2], ctrls[3], ctrls[4], ctrls[5], ctrls[6], ctrls[7]
-
-    def update(self, ctrls):
-        self.left, self.right, self.up, self.shoot, self.hit, self.down, self.hook, self.roll = \
-            ctrls[0], ctrls[1], ctrls[2], ctrls[3], ctrls[4], ctrls[5], ctrls[6], ctrls[7]
-
-
-class CharHUD():
-    def __init__(self, x, name, knockinfo, lives):
-        self.rect = pygame.Rect(x, 20, 100, 50)
-        self.rect = pygame.draw.rect(screen, (0, 0, 0), self.rect, 1)
-        self.namefont = pygame.font.SysFont('verdana', 10)
-        self.knockfont = pygame.font.SysFont('verdana', 15)
-        self.livesfont = pygame.font.SysFont('verdana', 10)
-        self.nameinfo = self.namefont.render(name, 1, (0,0,0))
-        self.knockinfo = self.namefont.render(str(knockinfo) + "%", 1, (0, 0, 0))
-        self.livesinfo = self.namefont.render("Lives: " + str(lives), 1, (0, 0, 0))
-
-    def update(self, knock, lives):
-        self.knockinfo = self.namefont.render(str(knock) + "%", 1, (0, 0, 0))
-        self.livesinfo = self.namefont.render("Lives: " + str(lives), 1, (0, 0, 0))
-        self.rect = pygame.draw.rect(screen, (0, 0, 0), self.rect, 1)
-        screen.blit(self.nameinfo, (self.rect.x + 25, self.rect.y + 5))
-        screen.blit(self.knockinfo, (self.rect.centerx - 2, self.rect.y + 18))
-        screen.blit(self.livesinfo, (self.rect.centerx - 16, self.rect.y + 30))
-
-
-class SmashHit:
-
-    def __init__(self, char):
-        self.movex = 0
-        self.movey = 0
-        self.image = pygame.image.load("smash.png")
-        self.owner = char
-        if char.movementDirection == "right":
-            self.direction = "right"
-            self.rect = pygame.Rect(char.rect.centerx, char.rect.y,
-                                    self.image.get_rect().width, self.image.get_rect().height)
-        else:
-            self.direction = "left"
-            self.rect = pygame.Rect(char.rect.centerx - char.rect.width, char.rect.y,
-                                    self.image.get_rect().width, self.image.get_rect().height)
-        self.smashtimer = 0.1
-        self.smashtickshot = pygame.time.get_ticks() - 0.1
-        self.smashduration = 0.3
-        self.charindex = spriteChars.index(char)
-
-    def update(self):
-        if self.direction == "right":
-            self.rect = pygame.Rect(spriteChars[self.charindex].rect.centerx + self.movex, spriteChars[self.charindex].rect.y + self.movey,
-                                    self.image.get_rect().width, self.image.get_rect().height)
-        else:
-            self.rect = pygame.Rect(spriteChars[self.charindex].rect.centerx + self.movex - spriteChars[self.charindex].rect.width, spriteChars[self.charindex].rect.y + self.movey,
-                                    self.image.get_rect().width, self.image.get_rect().height)
-        # cooldowns
-        if self.smashtimer > 0:
-            self.smashtimer = (pygame.time.get_ticks() - self.smashtickshot) / 1000  # calculate how many seconds
-            if self.direction == "right":
-                if self.smashtimer < self.smashduration / 2:
-                     self.movex += 3.5
-            else:
-                if self.smashtimer < self.smashduration / 2:
-                    self.movex -= 3.5
-            self.movey += 3.3
-        if self.smashtimer > self.smashduration:
-            spriteSmashes.remove(self)
-        self.rect = pygame.draw.rect(screen, (50, 50, 50), self.rect, 1)
-        screen.blit(self.image, (self.rect.x, self.rect.y))
-
-class Hookshot:
-    def __init__(self, char):
-        if char.movementDirection == "right":
-            self.image = pygame.image.load("hookright.png")
-            self.direction = 25
-            self.rect = pygame.Rect(char.rect.x + char.rect.width, char.rect.y + char.rect.height * 0.3,
-                                    self.image.get_rect().width, self.image.get_rect().height)
-            self.rect.left = char.rect.right
-            #self.imagerect = self.rect
-        else:
-            self.image = pygame.image.load("hookleft.png")
-            self.direction = -25
-            self.rect = pygame.Rect(char.rect.x - char.rect.width, char.rect.y + char.rect.height * 0.3,
-                                    self.image.get_rect().width, self.image.get_rect().height)
-            self.rect.right = char.rect.left
-           # self.imagerect = self.rect
-        self.targethit = False
-        self.char = char
-
-    def update(self):
-        if not self.targethit:
-            for floor in spriteFloors:
-                if self.rect.colliderect(floor):
-                    self.targethit = True
-                    break
-
-        if not self.targethit:
-            if self.direction:
-                self.rect.x += self.direction
-                #self.imagerect.right += self.direction
-            else:
-                self.rect.x += self.direction
-                #self.rect.width += self.direction
-                #self.imagerect.x += self.direction
-
-        self.rect = pygame.draw.rect(screen, (50, 50, 50), self.rect, 1)
-        screen.blit(self.image, (self.rect.x, self.rect.y))
-
-
-class Fireball:
-    def __init__(self, char, direction = ""):
-        self.image = pygame.image.load("fireball.png")
-        self.ydirection = 0
-        self.xdirection = 0
-        self.owner = char
-        self.active = True
-        self.rect = pygame.Rect(0,0,1,1)
-        if direction == "up":
-            self.ydirection = -2
-            if char.movementDirection == "right":
-                self.rect = pygame.Rect(char.rect.x + char.rect.width, char.rect.top - self.image.get_rect().height - 1,
-                                        self.image.get_rect().width, self.image.get_rect().height)
-                self.xdirection = 20
-            else:
-                self.xdirection = -20
-                self.rect = pygame.Rect(char.rect.x - self.image.get_rect().width, char.rect.top - self.image.get_rect().height - 1,
-                                        self.image.get_rect().width, self.image.get_rect().height)
-        elif direction == "down":
-            self.ydirection = 2
-            if char.movementDirection == "right":
-                self.rect = pygame.Rect(char.rect.x + char.rect.width, char.rect.top - self.image.get_rect().height - 1,
-                                        self.image.get_rect().width, self.image.get_rect().height)
-                self.xdirection = 20
-            else:
-                self.xdirection = -20
-                self.rect = pygame.Rect(char.rect.x - self.image.get_rect().width, char.rect.top - self.image.get_rect().height - 1,
-                                        self.image.get_rect().width, self.image.get_rect().height)
-        elif char.movementDirection == "right":
-            self.rect = pygame.Rect(char.rect.x + char.rect.width, char.rect.y + char.rect.height * 0.3,
-                                    self.image.get_rect().width, self.image.get_rect().height)
-            self.xdirection = 20
-        elif char.movementDirection == "left":
-            self.rect = pygame.Rect(char.rect.x - self.image.get_rect().width, char.rect.y + char.rect.height * 0.3,
-                                    self.image.get_rect().width, self.image.get_rect().height)
-            self.xdirection = -20
-
-    def update(self):
-        self.ydirection *= 1.3
-        for floor in spriteFloors:
-            if self.rect.colliderect(floor):
-                if self.ydirection == 0:
-                    spriteFireballs.remove(self)
-                    self.active = False
-                break
-
-        if self.rect.top <= 0 or self.rect.bottom >= SCREENHEIGHT or self.rect.right >= SCREENWIDTH or self.rect.left <= 0:
-            if self.active:
-                spriteFireballs.remove(self)
-
-        self.rect = pygame.draw.rect(screen, (50, 50, 50), self.rect, 1)
-        screen.blit(self.image, (self.rect.x, self.rect.y))
-        self.rect.x += self.xdirection
-        if self:
-            self.rect.y += self.ydirection
-
-
 class Char:
 
     def __init__(self, x, y, hudx, controls):
-        self.image = pygame.image.load("art2.png")
+        self.imageright1, self.imageright2, self.imageright3, self.imageright4 = pygame.image.load("wiz1.png"), \
+            pygame.image.load("wiz2.png"), pygame.image.load("wiz3.png"), pygame.image.load("wiz4.png")
+        self.imageleft1, self.imageleft2, self.imageleft3, self.imageleft4 = pygame.image.load("wizl1.png"), \
+            pygame.image.load("wizl2.png"), pygame.image.load("wizl3.png"), pygame.image.load("wizl4.png")
         self.dashimage = pygame.image.load("dash.png")
-        self.spawnx = x
+        self.spawnx = x - self.imageright1.get_rect().width / 2
         self.spawny = y
-        self.rect = pygame.Rect(self.spawnx, self.spawny, self.image.get_rect().width, self.image.get_rect().height)
+        self.rect = pygame.Rect(self.spawnx, self.spawny, self.imageright1.get_rect().width, self.imageright1.get_rect().height)
         print(self.rect.width)
         print(self.rect.height)
-        self.movementSpeed = 7
+        self.movementSpeed = 6
         self.xforce, self.yforce = 0, 0
         self.isJump = False
         self.movementDirection = "none"
         self.lives = 3
+
+        self.moveindex = 1
 
         #Midlertidig
         self.printcounter = 0
@@ -246,6 +93,10 @@ class Char:
         self.lastsmashtimer = 0
         self.smashtickshot = 0
 
+        self.jumpcooldown = 0.01
+        self.lastjumptimer = 0
+        self.jumptickshot = 0
+
         # For the receiving hits
         self.smashhitdirection = ""
         self.smashhittimer = 0
@@ -260,7 +111,7 @@ class Char:
         self.fireballhitpower = 5
 
         self.beingHooked = False
-        self.hit = False
+        self.isHit = False
         # For the roll
         # Cooldown
         self.rollcooldown = 1
@@ -277,41 +128,29 @@ class Char:
 
         self.flyingToHook = False
 
+        self.unmoveable = False
+
         self.vup, self.vdown = 1, 0.3
         self.knockbackbonus = 0
         self.name = "MaddyIce"
         self.controls = controls
-        self.hud = CharHUD(hudx, self.name, self.knockbackbonus, self.lives)
+        self.hud = CharHUD(hudx, self.name, self.knockbackbonus, self.lives, screen)
         self.input = CharInput(controls)
 
     def moveLeft(self):
         self.movementDirection = "left"
         move = True
 
-        for floor in spriteFloors:
-            if (floor.rect.right >= self.rect.left >= floor.rect.left
-                    and self.rect.left + self.rect.width >= floor.rect.left
-                    and floor.rect.top <= self.rect.centery <= floor.rect.bottom):
-                move = False
-                break
-
-        if move and not self.flyingToHook and not self.isRoll:
+        if not self.left_check() and not self.flyingToHook and not self.isRoll:
             self.xforce -= self.movementSpeed
             #self.rect.x -= self.movementSpeed
 
     def moveRight(self):
         self.movementDirection = "right"
-        move = True
-
-        for floor in spriteFloors:
-            if (self.rect.right - self.rect.width <= floor.rect.left <= self.rect.right <= floor.rect.right
-                    and floor.rect.top <= self.rect.centery <= floor.rect.bottom):
-                move = False
-                break
-
-        if move and not self.flyingToHook and not self.isRoll:
+        if not self.right_check() and not self.flyingToHook and not self.isRoll:
             self.xforce += self.movementSpeed
             #self.rect.x += self.movementSpeed
+
 
     def roll(self):
         if not self.isRoll and self.lastrolltimer == 0:
@@ -340,8 +179,9 @@ class Char:
             self.rollhittimer = 0
 
     def jump(self):
-        if not self.isJump and self.ground_check():
+        if not self.isJump and self.ground_check() and self.lastjumptimer == 0:
             self.isJump = True
+            #self.lastjumptimer, self.jumptickshot = self.action_starter(self.lastjumptimer, self.jumptickshot)
 
     def shootfireball(self):
         self.lastfireballtimer, self.fireballtickshot = self.action_starter(self.lastfireballtimer, self.fireballtickshot, Fireball(self))
@@ -349,7 +189,7 @@ class Char:
     def shoothook(self):
         self.lasthooktimer, self.hooktickshot = self.action_starter(self.lasthooktimer, self.hooktickshot, Hookshot(self))
 
-    def action_starter(self, timer, tickshot, obj):
+    def action_starter(self, timer, tickshot, obj = ""):
         if timer == 0:
             tickshot = pygame.time.get_ticks()
             if isinstance(obj, Fireball):
@@ -361,8 +201,7 @@ class Char:
                     spriteFireballs.append(Fireball(self))
             elif isinstance(obj, Hookshot):
                 spriteHookshots.append(Hookshot(self))
-            else:
-                print("NOT A CLASS OBJECT!")
+
             timer = 0.1
         return timer, tickshot
 
@@ -378,7 +217,7 @@ class Char:
                     self.flyingToHook = False
                     spriteHookshots.remove(hook)
                     break
-                if self.hit and self.flyingToHook:
+                if self.isHit and self.flyingToHook:
                     self.flyingToHook = False
                     self.movelockx = 0
                     self.movelocky = 0
@@ -387,29 +226,19 @@ class Char:
     def smash(self):
         if self.lastsmashtimer == 0:
             self.smashtickshot = pygame.time.get_ticks()
-            spriteSmashes.append(SmashHit(self))
+            spriteSmashes.append(SmashHit(self, spriteChars))
             self.lastsmashtimer = 0.1  # starter tick
-
-    def ground_check(self):
-        onground = None
-        for floor in spriteFloors:
-            if floor.rect.top <= self.rect.bottom <= floor.rect.top + 25 \
-                    and self.rect.left + self.rect.width * 0.8 >= floor.rect.left and \
-                    self.rect.right - self.rect.width * 0.8 <= floor.rect.right:
-                onground = floor
-                break
-        return onground
 
     def check_for_hits(self):
 
-        self.hit = False
+        self.isHit = False
 
         # Check for fireball
         if not self.isRoll:
             for fireball in spriteFireballs:
                 if fireball.rect.colliderect(self):
                     if not fireball.owner == self:
-                        self.hit = True
+                        self.isHit = True
                         mag = (magnitude(self, fireball))
                         self.multipliery = math.sin(mag)
                         self.multiplierx = math.cos(mag)
@@ -439,7 +268,7 @@ class Char:
             for smash in spriteSmashes:
                 if smash.rect.colliderect(self):
                     if smash.owner != self:
-                        self.hit = True
+                        self.isHit = True
                         if smash.direction == "right":
                             self.smashhitdirection = "right"
                         else:
@@ -480,19 +309,20 @@ class Char:
                         break
 
 
-        if self.hit and self.flyingToHook:
+        if self.isHit and self.flyingToHook:
             self.beingHooked = False
             self.movelockx = 0
             self.movelocky = 0
             #spriteHookshots.remove(hook)
 
-        if self.hit:
+        if self.isHit:
             self.vdown = 0.3
 
     def moveDown(self):
         if self.ground_check() and not self.isJump:
-            self.vdown = 0.3
-            self.yforce += 26
+            if self.ground_check().rect.height <= 16:
+                self.vdown = 0.3
+                self.yforce += 26
             #self.rect.y += 26
 
     def keypresses(self):
@@ -543,13 +373,14 @@ class Char:
         self.lastsmashtimer, self.smashtickshot, self.smashcooldown = self.refresh_cooldown(self.lastsmashtimer, self.smashtickshot, self.smashcooldown)
         self.lasthooktimer, self.hooktickshot, self.hookcooldown = self.refresh_cooldown(self.lasthooktimer, self.hooktickshot, self.hookcooldown)
         self.lastrolltimer, self.rolltickshot, self.rollcooldown = self.refresh_cooldown(self.lastrolltimer, self.rolltickshot, self.rollcooldown)
+        self.lastjumptimer, self.jumptickshot, self.jumpcooldown = self.refresh_cooldown(self.lastjumptimer, self.jumptickshot, self.jumpcooldown)
 
     def gravity_and_jump(self):
         if self.isJump:
             if self.vup > 0.3:
-                self.yforce -= 25 * self.vup
+                self.yforce -= 20 * self.vup
                 #self.rect.y -= 25 * self.vup
-                self.vup -= 0.1
+                self.vup -= 0.11
             else:
                 self.vup = 1
                 self.isJump = False
@@ -557,7 +388,7 @@ class Char:
             self.rect.bottom = self.ground_check().rect.top
         else:
             if not self.ground_check():
-                self.yforce += 25 * self.vdown
+                self.yforce += 20 * self.vdown
 
                 if self.ground_check():
                     self.rect.bottom = self.ground_check().rect.top
@@ -566,6 +397,47 @@ class Char:
                     self.vdown += 0.05
             else:
                 self.vdown = 0.3
+
+    def check_for_top(self):
+        for wall in spriteFloors:
+            if self.rect.top + self.yforce <= wall.rect.bottom and self.rect.top + self.yforce >= wall.rect.centery and \
+                self.rect.right >= wall.rect.left and self.rect.left <= wall.rect.right:
+                if wall.rect.height <= 16:
+                    self.unmoveable = True
+                else:
+                    self.rect.top = wall.rect.bottom
+                    self.yforce = 0
+                    self.vup = 0.3
+
+
+    def ground_check(self):
+        onground = None
+        for floor in spriteFloors:
+            if floor.rect.top <= self.rect.bottom + self.yforce <= floor.rect.top + 25 \
+                    and self.rect.left + self.rect.width * 0.8 + self.xforce >= floor.rect.left and \
+                    self.rect.right - self.rect.width * 0.8 + self.xforce <= floor.rect.right:
+                onground = floor
+                break
+        return onground
+
+    def right_check(self):
+        wall = None
+        for floor in spriteFloors:
+            if (self.rect.left + self.xforce <= floor.rect.left <= self.rect.right + self.xforce <= floor.rect.right
+                    and floor.rect.top <= self.rect.centery + self.yforce <= floor.rect.bottom):
+                wall = floor
+                break
+        return wall
+
+    def left_check(self):
+        wall = None
+        for floor in spriteFloors:
+            if (floor.rect.right >= self.rect.left + self.xforce >= floor.rect.left
+                    and self.rect.left + self.rect.width + self.xforce >= floor.rect.left
+                    and floor.rect.top <= self.rect.centery + self.yforce <= floor.rect.bottom):
+                wall = floor
+                break
+        return wall
 
     def update(self):
 
@@ -578,11 +450,37 @@ class Char:
         self.keypresses()
 
         # hud update
-        self.hud.update(self.knockbackbonus, self.lives)
+        self.hud.update(self.knockbackbonus, self.lives, screen)
 
         self.check_for_hook()
 
         self.gravity_and_jump()
+
+        if self.ground_check():
+            if self.yforce > 0:
+                self.yforce = 0
+            if self.lastjumptimer == 0:
+                self.jumptickshot = pygame.time.get_ticks()
+                self.lastjumptimer = 0.1  # starter tick
+
+        if self.check_for_top():
+            print("")
+        elif self.left_check():
+            print("LEFT CHECK")
+            wall = self.left_check()
+            if not self.unmoveable:
+                if self.rect.left < wall.rect.right:
+                    print("left = right")
+                    self.xforce = 0
+                    #self.rect.left = wall.rect.right
+        elif self.right_check():
+            wall = self.right_check()
+            if not self.unmoveable:
+                if self.rect.right < wall.rect.left:
+                    print("right 0 left")
+                    self.xforce = 0
+                    #self.rect.right = wall.rect.left
+        self.unmoveable = False
 
         if not self.movelockx == 0 and not self.movelocky == 0:
             print(self.movelockx)
@@ -607,6 +505,7 @@ class Char:
         self.movelockx = 0
         self.movelockx = 0
 
+        # Change lives and respawn
         if self.rect.y <= 0 or self.rect.x <= 0 or self.rect.x >= SCREENWIDTH or self.rect.y >= SCREENHEIGHT or self.rect.bottom >= SCREENHEIGHT:
             self.lives -= 1
             self.knockbackbonus = 0
@@ -615,100 +514,64 @@ class Char:
             for hook in spriteHookshots:
                 if hook.char == self:
                     spriteHookshots.remove(hook)
-            self.rect = pygame.Rect(self.spawnx, self.spawny, self.image.get_rect().width, self.image.get_rect().height)
+            self.rect = pygame.Rect(self.spawnx, self.spawny, self.imageright1.get_rect().width, self.imageright1.get_rect().height)
 
        # self.rect.width = 32
        # self.rect.height = 64
         self.rect = pygame.draw.rect(screen, (50, 50, 50), self.rect, 1)
-        screen.blit(self.image, (self.rect.x, self.rect.y))
+
+        self.moveindex += 1
+
+        if self.moveindex > 4:
+            self.moveindex = 1
+
+        if self.movementDirection == "right":
+            if self.moveindex == 1:
+                screen.blit(self.imageright1, (self.rect.x, self.rect.y))
+            elif self.moveindex == 2:
+                screen.blit(self.imageright2, (self.rect.x, self.rect.y))
+            elif self.moveindex == 3:
+                screen.blit(self.imageright3, (self.rect.x, self.rect.y))
+            elif self.moveindex == 4:
+                screen.blit(self.imageright4, (self.rect.x, self.rect.y))
+        else:
+            if self.moveindex == 1:
+                screen.blit(self.imageleft1, (self.rect.x, self.rect.y))
+            elif self.moveindex == 2:
+                screen.blit(self.imageleft2, (self.rect.x, self.rect.y))
+            elif self.moveindex == 3:
+                screen.blit(self.imageleft3, (self.rect.x, self.rect.y))
+            elif self.moveindex == 4:
+                screen.blit(self.imageleft4, (self.rect.x, self.rect.y))
 
         self.xforce = 0
         self.yforce = 0
-
-
-class Wall:
-
-    def __init__(self, x, y, width, height):
-        self.rect = pygame.Rect(x, y, width, height)
-        self.rect = pygame.draw.rect(screen, (255, 0, 0), self.rect, 0)
-        self.movement = -10
-
-    def update(self):
-        self.rect = pygame.draw.rect(screen, (255, 0, 0), self.rect, 0)
-
-    def moveleftandright(self, leftside, rightside, speed):
-        if self.rect.x <= leftside:
-            self.movement = speed
-        if self.rect.x >= rightside:
-            self.movement = -speed
-        self.rect.x += self.movement
-
-
-def magnitude(obj1, obj2):
-    #Try atan2
-    return math.atan2((obj2.rect.centery - obj1.rect.centery), (obj2.rect.centerx - obj1.rect.centerx)) + math.pi
-
 
 # define a main function
 def main():
     # initialize the pygame module
     global keys
+    global screen
 
     hudpos = 30
-    spriteChars.append(Char(SCREENWIDTH * 0.3, 280, hudpos, ply1ctrls))
+    spriteChars.append(Char(SCREENWIDTH * 0.3, SCREENHEIGHT * 0.5, hudpos, ply1ctrls))
     hudpos += 100
-    spriteChars.append(Char(SCREENWIDTH * 0.6, 280, hudpos, ply2ctrls))
+    spriteChars.append(Char(SCREENWIDTH * 0.7, SCREENHEIGHT * 0.5, hudpos, ply2ctrls))
 
+    spriteFloors.append(Wall(screen, SCREENWIDTH * 0.25, SCREENHEIGHT * 0.7, 200, 16, "brick.png", "brick.png"))
+    spriteFloors.append(Wall(screen, SCREENWIDTH * 0.75, SCREENHEIGHT * 0.7, 200, 16, "brick.png", "brick.png"))
+    spriteFloors.append(Wall(screen, 0, 0, 64, 126, "brick.png", "brick.png"))
+    spriteFloors[2].attach(spriteFloors[1], "right")
+    spriteFloors.append(Wall(screen, 0, 0, 64, 126, "brick.png", "brick.png"))
+    spriteFloors[3].attach(spriteFloors[0], "left")
+    spriteFloors.append(Wall(screen, SCREENWIDTH * 0.5, SCREENHEIGHT * 0.95, 64, 32))
+    spriteFloors.append(Wall(screen, SCREENWIDTH * 0.25, SCREENHEIGHT * 0.95, 128, 32))
+    spriteFloors.append(Wall(screen, SCREENWIDTH * 0.75, SCREENHEIGHT * 0.95, 128, 32))
+    spriteFloors.append(Wall(screen, SCREENWIDTH * 0.5, SCREENHEIGHT * 0.45, 200, 16, "brick.png", "brick.png"))
+    spriteFloors.append(Wall(screen, SCREENWIDTH * 0.5, SCREENHEIGHT * 0.20, 64, 16, "brick.png", "brick.png"))
+    spriteFloors[7].moveleftandright(SCREENWIDTH*0.3, SCREENWIDTH*0.7, 10)
 
-    # Bottom, right and top
-    spriteFloors.append(Wall(SCREENWIDTH - 16, 0, 16, SCREENHEIGHT))
-    spriteFloors.append(Wall(0, 0, 16, SCREENHEIGHT))
-    spriteFloors.append(Wall(0, 0, SCREENWIDTH, 16))
-
-    # Top center
-    spriteFloors.append(Wall(SCREENWIDTH * 0.5 - SCREENWIDTH * 0.1, SCREENHEIGHT - 610, SCREENWIDTH * 0.2, 16))
-    spriteFloors[3].rect.centerx = SCREENWIDTH/2
-
-    spriteFloors.append(Wall(SCREENWIDTH * 0.5 - SCREENWIDTH * 0.1, SCREENHEIGHT - 500, SCREENWIDTH * 0.2, 16))
-    spriteFloors[4].rect.centerx = SCREENWIDTH/2 - 200
-
-    spriteFloors.append(Wall(SCREENWIDTH * 0.5 - SCREENWIDTH * 0.1, SCREENHEIGHT - 500, SCREENWIDTH * 0.2, 16))
-    spriteFloors[5].rect.centerx = SCREENWIDTH/2 + 200
-
-    #spriteFloors.append(Wall(SCREENWIDTH / 2, SCREENHEIGHT - 150, SCREENWIDTH / 2, 16))
-    #spriteFloors.append(Wall(SCREENWIDTH / 2, SCREENHEIGHT - 250, SCREENWIDTH / 2, 16))
-    spriteFloors.append(Wall(SCREENWIDTH * 0.2, SCREENHEIGHT - 400, SCREENWIDTH / 2, 16))
-    spriteFloors[6].rect.centerx = SCREENWIDTH / 2
-
-    spriteFloors.append(Wall(SCREENWIDTH - 50, 200, 16, 256 * 2.1))
-    spriteFloors.append(Wall(SCREENWIDTH - 250, 200, 16, 256 * 2.1))
-
-    spriteFloors.append(Wall(0,256,200,16))
-    spriteFloors[9].rect.left = spriteFloors[8].rect.right
-
-    spriteFloors.append(Wall(0,406,200,16))
-    spriteFloors[10].rect.left = spriteFloors[8].rect.right
-
-    spriteFloors.append(Wall(0,556,400,16))
-    spriteFloors[11].rect.centerx = spriteFloors[8].rect.centerx
-
-    spriteFloors.append(Wall(0,606,128,16))
-    spriteFloors[12].rect.x = SCREENWIDTH/2 + 50
-
-    spriteFloors.append(Wall(0,656,128,16))
-    spriteFloors[13].rect.x = SCREENWIDTH/2 - 100
-
-    spriteFloors.append(Wall(0,456,202,16))
-    spriteFloors[14].rect.x = SCREENWIDTH/2 - 130
-
-    spriteFloors.append(Wall(0,606,128,16))
-    spriteFloors[15].rect.x = SCREENWIDTH/2 - 240
-
-    spriteFloors.append(Wall(10, SCREENHEIGHT - 100, SCREENWIDTH * 0.2, 32))
-    spriteFloors.append(Wall(10, SCREENHEIGHT - 250, SCREENWIDTH * 0.2, 32))
-    spriteFloors.append(Wall(10, SCREENHEIGHT - 500, SCREENWIDTH * 0.2, 32))
-
-    spriteFloors.append(Wall(16, SCREENHEIGHT * 0.33, 16, SCREENHEIGHT * 0.73))
+    bgimage = pygame.image.load("bg.png")
 
     # define a variable to control the main loop
     running = True
@@ -716,6 +579,8 @@ def main():
     # main loop
     while running:
 
+        screen.fill((255, 255, 255))
+        screen.blit(bgimage, (0, 0))
         # event handling, gets all event from the event queue
         for event in pygame.event.get():
             keys = pygame.key.get_pressed()
@@ -730,31 +595,38 @@ def main():
             if event.type == pygame.QUIT:
                 running = False
 
+            if keys[pygame.K_0]:
+                screen = pygame.display.set_mode((SCREENWIDTH, SCREENHEIGHT), pygame.RESIZABLE)
+            if keys[pygame.K_9]:
+                screen = pygame.display.set_mode((SCREENWIDTH, SCREENHEIGHT), pygame.FULLSCREEN)
         # Updates here
 
-        screen.fill((255, 255, 255))
-
-        spriteFloors[4].moveleftandright(SCREENWIDTH/2 - 300, SCREENWIDTH/2, 10)
+        #spriteFloors[4].moveleftandright(SCREENWIDTH/2 - 300, SCREENWIDTH/2, 10)
 
         for char in spriteChars:
             char.update()
 
         for floor in spriteFloors:
-            floor.update()
+            floor.update(screen)
 
         for smash in spriteSmashes:
-            smash.update()
+            smash.update(spriteChars, spriteSmashes, screen)
 
         for hook in spriteHookshots:
-            hook.update()
+            hook.update(screen, spriteFloors)
 
         for fire in spriteFireballs:
-            fire.update()
+            fire.update(spriteFloors, spriteFireballs, SCREENHEIGHT, SCREENWIDTH, pygame, screen)
 
         pygame.display.update()
         clock.tick(30)
         ##delay at 20
-        pygame.time.delay(0)
+
+
+def magnitude(obj1, obj2):
+    # Try atan2
+    return math.atan2((obj2.rect.centery - obj1.rect.centery),
+                        (obj2.rect.centerx - obj1.rect.centerx)) + math.pi
 
 # run the main function only if this module is executed as the main script
 # (if you import this as a module then nothing is executed)
